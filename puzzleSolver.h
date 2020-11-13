@@ -9,6 +9,21 @@ using namespace std;
 //def _DEBUG
 //#endif 
 
+const double KERNAL_RATE = 0.61;
+
+double getButterRate(int i) {
+	if (i <= 0) {
+		return 1;
+	}
+	if (i == 1) {
+		return 1.4535;
+	}
+	if (i == 2) {
+		return 2.3061;
+	}
+	return 5.7443;
+}
+
 bool isEmpty(int idx) {
 	return idx == -1 || (idx == DC_21 || (idx == TDDL_4 || idx == WG_17));
 }
@@ -44,7 +59,7 @@ double getFumeDPS(int idx) {
 		case DC_21:
 			return 3;
 		case YMTS_34:
-			return 2 * (15.0 / 16);
+			return 2 * KERNAL_RATE * getButterRate(1);
 		default:
 			return 0;
 	}
@@ -63,8 +78,8 @@ struct Row {
 	double* walk = new double[6];
 	double* fumeBite = new double[6];
 	double* fumeWalk = new double[6];
-	double* kernalBite = new double[6];
-	double* kernalWalk = new double[6];
+	/*double* kernalBite = new double[6];
+	double* kernalWalk = new double[6];*/
 	double* extraBite = new double[6];
 	double* extraWalk = new double[6];
 	bool* biteSlowed = new bool[6];
@@ -73,6 +88,7 @@ struct Row {
 	bool* walkFire = new bool[6];
 	int* biteButter = new int[6];
 	int* walkButter = new int[6];
+	set<int> wallnuts;
 
 	double BITE_DPS = -1;
 	double WALK_DPS = -1;
@@ -150,8 +166,8 @@ struct Row {
 			walk[i] = 0;
 			fumeBite[i] = 0;
 			fumeWalk[i] = 0;
-			kernalBite[i] = 0;
-			kernalWalk[i] = 0;
+		/*	kernalBite[i] = 0;
+			kernalWalk[i] = 0;*/
 			extraBite[i] = 0;
 			extraWalk[i] = 0;
 			biteSlowed[i] = false;
@@ -169,8 +185,8 @@ struct Row {
 		delete[] walk;
 		delete[] fumeBite;
 		delete[] fumeWalk;
-		delete[] kernalBite;
-		delete[] kernalWalk;
+		/*delete[] kernalBite;
+		delete[] kernalWalk;*/
 		delete[] extraBite;
 		delete[] extraWalk;
 		delete[] biteSlowed;
@@ -228,6 +244,8 @@ struct Row {
 			}
 			return;
 		}
+		biteLmt = -1;
+		walkLmt = -1;
 	}
 
 	void convert() {
@@ -282,28 +300,50 @@ struct Row {
 	}
 
 	void addXPG(int start) {
-		// 计算啃食输出
-		for (int i = start + 1; i <= 5; i++) {
-			if (i > start + 3)
-				break;
-			if (!isEmpty(row[i - 1]))
-				bite[i] += BITE_DPS;
+		// 前置僵尸的小喷菇计算
+		if (mode == 0 || mode == 3) {
+			for (int i = start + 1; i <= 5; i++) {
+				if (i > start + 4) 
+					break;
+				if (!isEmpty(row[i - 1]))
+					bite[i] += BITE_DPS;
+			}
+			for (int i = start + 1; i < 5; i++) {
+				if (i <= start + 3) {
+					walk[i] += WALK_DPS;
+				}
+				else {
+					break;
+				}
+			}
+			if (start >= 2) {
+				walk[5] += 1;
+			}
 		}
+		else {
+			// 计算啃食输出
+			for (int i = start + 1; i <= 5; i++) {
+				if (i > start + 3)
+					break;
+				if (!isEmpty(row[i - 1]))
+					bite[i] += BITE_DPS;
+			}
 
-		// 计算行走输出
-		for (int i = start + 1; i < 5; i++) {
-			if (i <= start + 2) {
-				walk[i] += WALK_DPS;
+			// 计算行走输出
+			for (int i = start + 1; i < 5; i++) {
+				if (i <= start + 2) {
+					walk[i] += WALK_DPS;
+				}
+				else if (i == start + 3) {
+					walk[i] += XPG_FIX;
+				}
+				else {
+					break;
+				}
 			}
-			else if (i == start + 3) {
-				walk[i] += XPG_FIX;
+			if (start >= 2) {
+				walk[5] += 1;
 			}
-			else {
-				break;
-			}
-		}
-		if (start >= 2) {
-			walk[5] += 1;
 		}
 	}
 
@@ -348,12 +388,14 @@ struct Row {
 		// 计算DPS
 		for (int i = start + 1; i <= 5; i++) {
 			if (!isEmpty(row[i - 1]))
-				kernalBite[i] += (15.0 / 16) * BITE_DPS;
+				//kernalBite[i] += KERNAL_RATE * BITE_DPS;
+				fumeBite[i] += KERNAL_RATE * BITE_DPS;
 		}
 		for (int i = start + 1; i < 5; i++) {
-			kernalWalk[i] += (15.0 / 16) * WALK_DPS;
+			//kernalWalk[i] += KERNAL_RATE * WALK_DPS;
+			fumeWalk[i] += KERNAL_RATE * WALK_DPS;
 		}
-		kernalWalk[5] += 15.0 / 16;
+		fumeWalk[5] += KERNAL_RATE;
 
 		// 增加黄油状态
 		for (int i = start + 1; i <= 5; i++) {
@@ -384,9 +426,15 @@ struct Row {
 	}
 
 	void addJG(int start) {
-		bite[start + 1] *= 14;
-		kernalBite[start + 1] *= 14;
-		fumeBite[start + 1] *= 14;
+		wallnuts.insert(start);
+	}
+
+	void fixJG() {
+		for (auto w : wallnuts) {
+			bite[w + 1] *= 14;
+			//kernalBite[w + 1] *= 14;
+			fumeBite[w + 1] *= 14;
+		}
 	}
 
 	void addPlants() {
@@ -424,6 +472,7 @@ struct Row {
 					break;
 			}
 		}
+		fixJG();
 	}
 
 	int compute() {
@@ -451,9 +500,14 @@ struct Row {
 		// 撑杆修正
 		if (mode == 0) {
 			if (biteLmt >= 0) {
-				bite[biteLmt] *= 1.25;
+				if (biteLmt - 1 >= 0 && (biteLmt - 1 < 5 && row[biteLmt - 1] == YT_29)) {
+					bite[biteLmt] += (bite[biteLmt] - 10) * 1.25;
+				}
+				else {
+					bite[biteLmt] *= 1.25;
+				}
 				fumeBite[biteLmt] *= 1.25;
-				kernalBite[biteLmt] *= 1.25;
+				//kernalBite[biteLmt] *= 1.25;
 			}
 		}
 
@@ -462,17 +516,30 @@ struct Row {
 			if (biteSlowed[i]) {
 				if (biteFire[i]) {
 					biteDPS *= 1.33;
-					kernalBite[i] *= 1.33;
+					//kernalBite[i] *= 1.33;
 				}
 				else {
 					biteDPS *= 2;
-					kernalBite[i] *= 2;
+					//kernalBite[i] *= 2;
 				}
 			}
-			for (int j = 0; j < biteButter[i]; j++) {
-				biteDPS *= 1.5;
+			else if (HBfix.find(i) != HBfix.end()) {
+				if (!biteFire[i]) {
+					if (mode == 3) {
+						if (wallnuts.find(i - 1) != wallnuts.end()) {
+							biteDPS += biteDPS / 14.0 * 0.5;
+						}
+						else {
+							biteDPS *= 1.5;
+						}
+					}
+				}
 			}
-			biteDPS += kernalBite[i];
+			biteDPS *= getButterRate(biteButter[i]);
+			/*for (int j = 0; j < biteButter[i]; j++) {
+				biteDPS *= 1.5;
+			}*/
+			//biteDPS += kernalBite[i];
 			sum += biteDPS;
 		}
 
@@ -481,23 +548,29 @@ struct Row {
 			if (walkSlowed[i]) {
 				if (walkFire[i]) {
 					walkDPS *= 1.33;
-					kernalWalk[i] *= 1.33;
+					//kernalWalk[i] *= 1.33;
 				}
 				else {
 					walkDPS *= 2;
-					kernalWalk[i] *= 2;
+					//kernalWalk[i] *= 2;
 				}
 			}
 			else if (HBfix.find(i) != HBfix.end()) {
 				if (!walkFire[i]) {
-					walkDPS *= 1.875;
-					kernalWalk[i] *= 1.875;
+					if (mode == 3) {
+						walkDPS *= 2;
+					}
+					else {
+						walkDPS *= 1.875;
+					}
+					//kernalWalk[i] *= 1.875;
 				}
 			}
-			for (int j = 0; j < walkButter[i]; j++) {
+			walkDPS *= getButterRate(walkButter[i]);
+			/*for (int j = 0; j < walkButter[i]; j++) {
 				walkDPS *= 1.5;
-			}
-			walkDPS += kernalWalk[i];
+			}*/
+			//walkDPS += kernalWalk[i];
 			sum += walkDPS;
 		}
 		return int(round(sum));
@@ -543,7 +616,7 @@ struct Row {
 		// 伤害域向左修正
 		walk[5] = 0;
 		fumeWalk[5] = 0;
-		kernalWalk[5] = 0;
+		//kernalWalk[5] = 0;
 		extraWalk[5] = 0;
 
 		// 算血
@@ -554,23 +627,25 @@ struct Row {
 				if (walkOnWallnut) {	// 若走过搭梯坚果，则所有walk改为1.33倍 (1.5->2）
 					walk[i] *= 1.33;
 					fumeWalk[i] *= 1.33;
-					kernalWalk[i] *= 1.33;
+					//kernalWalk[i] *= 1.33;
 					walkOnWallnut = false;
 				}
 				else if (!hasLadder) {	// 无梯子时，行走伤害改为2.67倍 (1.5->4)
 					walk[i] *= 2.67;
 					fumeWalk[i] *= 2.67;
-					kernalWalk[i] *= 2.67;
+					//kernalWalk[i] *= 2.67;
 				}
 				double walkDPS = walk[i];
 				if (hasLadder) {
 					walkDPS += extraWalk[i];
 				}
 				double walkFumeDPS = fumeWalk[i];
-				for (int j = 0; j < walkButter[i]; j++) {
+				walkDPS *= getButterRate(walkButter[i]);
+				walkFumeDPS *= getButterRate(walkButter[i]);
+				/*for (int j = 0; j < walkButter[i]; j++) {
 					walkDPS *= 1.5;
 					walkFumeDPS *= 1.5;
-				}
+				}*/
 
 				// 计算过程中失去扶梯导致的附加伤害
 				double offset = 0;
@@ -578,7 +653,7 @@ struct Row {
 					double hasLadderPct = (25 - sum) / walkDPS;
 					offset = (sum + walkDPS - 25 - extraWalk[i] * (1 - hasLadderPct)) * 2.67;
 					walkFumeDPS += walkFumeDPS * (1 - hasLadderPct) * 1.67;
-					kernalWalk[i] += kernalWalk[i] * (1 - hasLadderPct) * 1.67;
+					//kernalWalk[i] += kernalWalk[i] * (1 - hasLadderPct) * 1.67;
 					sum = 25;
 					walkDPS = 0;
 					hasLadder = false;
@@ -593,24 +668,24 @@ struct Row {
 						if (walkFire[i]) {
 							offset *= 1.33;
 							walkFumeDPS *= 1.33;
-							kernalWalk[i] *= 1.33;
+							//kernalWalk[i] *= 1.33;
 						}
 						else {
 							offset *= 2;
 							walkFumeDPS *= 2;
-							kernalWalk[i] *= 2;
+							//kernalWalk[i] *= 2;
 						}
 					}
 					else if (HBfix.find(i) != HBfix.end()) {
 						if (!walkFire[i] && ladderLost < i + 2) {
 							offset *= 1.875;
 							walkFumeDPS *= 1.875;
-							kernalWalk[i] *= 1.875;
+							//kernalWalk[i] *= 1.875;
 						}
 					}
 					walkFumeDPS += offset;
 				}
-				walkFumeDPS += kernalWalk[i];
+				//walkFumeDPS += kernalWalk[i];
 				sum += walkDPS;
 				fumeSum += walkFumeDPS;
 			}
@@ -628,18 +703,18 @@ struct Row {
 					biteDPS += extraBite[i];
 				}
 				double biteFumeDPS = fumeBite[i];
-				for (int j = 0; j < biteButter[i]; j++) {
+				biteDPS *= getButterRate(biteButter[i]);
+				biteFumeDPS *= getButterRate(biteButter[i]);
+				/*for (int j = 0; j < biteButter[i]; j++) {
 					biteDPS *= 1.5;
 					biteFumeDPS *= 1.5;
-				}
+				}*/
 
 				// 计算过程中失去扶梯导致的附加伤害
 				double offset = 0;
 				if (hasLadder && sum + biteDPS >= 25) {
 					double hasLadderPct = (25 - sum) / biteDPS;
-					offset = (sum + biteDPS - 25 - extraBite[i] * (1 - hasLadderPct)) * 2.67;
-					biteFumeDPS += biteFumeDPS * (1 - hasLadderPct) * 1.67;
-					kernalBite[i] += kernalBite[i] * (1 - hasLadderPct) * 1.67;
+					offset = sum + biteDPS - 25 - extraBite[i] * (1 - hasLadderPct);
 					sum = 25;
 					biteDPS = 0;
 					hasLadder = false;
@@ -654,17 +729,14 @@ struct Row {
 						if (biteFire[i]) {
 							offset *= 1.33;
 							biteFumeDPS *= 1.33;
-							kernalBite[i] *= 1.33;
-						}
-						else {
+						} else {
 							offset *= 2;
 							biteFumeDPS *= 2;
-							kernalBite[i] *= 2;
 						}
 					}
 					biteFumeDPS += offset;
 				}
-				biteFumeDPS += kernalBite[i];
+				//biteFumeDPS += kernalBite[i];
 				sum += biteDPS;
 				fumeSum += biteFumeDPS;
 			}
@@ -722,7 +794,7 @@ struct Puzzle {
 				if (!r.canPV || temp > 39) {
 					highlight[i][0] = -1;
 				}
-				else if (temp <= 14) {
+				else if (temp <= 15) {
 					highlight[i][0] = 1;
 					hasHightlight = true;
 				}
@@ -764,7 +836,7 @@ struct Puzzle {
 				temp = r3.compute();
 				result[i][3] = to_string(temp);
 				if (!hasHightlight) {
-					if (temp <= 77 && !hasMagnet) {
+					if (temp <= 76 && !hasMagnet) {
 						highlight[i][3] = 1;
 						hasHightlight = true;
 					}
