@@ -371,7 +371,12 @@ struct Row {
 	void addDC(int start) {
 		fumeWalk[start] += DC_PASSBY;
 		if (start == 0 && mode != 0) {
-			fumeBite[start] += DC_BLOCK - 1;
+			if (mode == 1 || mode == 3) {
+				fumeBite[start] += DC_BLOCK - 1;
+			}
+			else {
+				fumeBite[start] += DC_BLOCK;
+			}
 		}
 		else {
 			if (!isEmpty(row[start - 1]) && mode != 0) {
@@ -692,7 +697,7 @@ struct Row {
 
 			// 啃食伤害
 			if (i <= biteLmt) {
-				if (wallnut + 1 == i && hasLadder) {
+				if (wallnut != -1 && (wallnut + 1 == i && hasLadder)) {
 					hasLadder = false;
 					ladderLost = i;
 					walkOnWallnut = true;
