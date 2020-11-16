@@ -506,12 +506,17 @@ struct Row {
 		if (mode == 0) {
 			if (biteLmt >= 0) {
 				if (biteLmt - 1 >= 0 && (biteLmt - 1 < 5 && row[biteLmt - 1] == YT_29)) {
-					bite[biteLmt] += (bite[biteLmt] - 10) * 1.25;
+					bite[biteLmt] += (bite[biteLmt] - 10) * 0.25;
+					fumeBite[biteLmt] *= 1.25;
+				}
+				else if (biteLmt - 1 >= 0 && (biteLmt - 1 < 5 && row[biteLmt - 1] == JG_3)) {
+					bite[biteLmt] += (bite[biteLmt] / 14.0) * 0.25;
+					fumeBite[biteLmt] *= 1.25;
 				}
 				else {
 					bite[biteLmt] *= 1.25;
+					fumeBite[biteLmt] *= 1.25;
 				}
-				fumeBite[biteLmt] *= 1.25;
 				//kernalBite[biteLmt] *= 1.25;
 			}
 		}
