@@ -16,12 +16,18 @@ double getButterRate(int i) {
 		return 1;
 	}
 	if (i == 1) {
-		return 1.4535;
+		return 1.4665;
 	}
 	if (i == 2) {
-		return 2.3061;
+		return 2.1467;
 	}
-	return 5.7443;
+	if (i == 3) {
+		return 3.1419;
+	}
+	if (i == 4) {
+		return 4.6022;
+	}
+	return 6.7470;
 }
 
 bool isEmpty(int idx) {
